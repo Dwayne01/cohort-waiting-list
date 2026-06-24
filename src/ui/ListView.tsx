@@ -1,7 +1,13 @@
+import { AnimatePresence, motion } from 'framer-motion';
 import type { Snapshot } from '../core';
 import { CohortBox } from './CohortBox';
 
-export function ListView({ snapshot }: { snapshot: Snapshot }) {
+type Props = {
+  snapshot: Snapshot;
+  cohortIds: readonly string[];
+};
+
+export function ListView({ snapshot, cohortIds }: Props) {
   if (snapshot.cohorts.length === 0) {
     return (
       <section className="list-empty">
@@ -18,18 +24,23 @@ export function ListView({ snapshot }: { snapshot: Snapshot }) {
         <span>← newest</span>
         <span>oldest →</span>
       </div>
-      <div className="list-row">
-        {snapshot.cohorts.map((cohort, i) => (
-          <CohortBox
-            key={i}
-            cohort={cohort}
-            capacity={snapshot.capacity}
-            index={i}
-            isOldest={i === last}
-            isNewest={i === 0}
-          />
-        ))}
-      </div>
+      <motion.div className="list-row" layout>
+        <AnimatePresence initial={false}>
+          {snapshot.cohorts.map((cohort, i) => {
+            const id = cohortIds[i] ?? `idx-${i}`;
+            return (
+              <CohortBox
+                key={id}
+                cohort={cohort}
+                capacity={snapshot.capacity}
+                index={i}
+                isOldest={i === last}
+                isNewest={i === 0}
+              />
+            );
+          })}
+        </AnimatePresence>
+      </motion.div>
     </section>
   );
 }

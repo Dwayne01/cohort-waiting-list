@@ -138,6 +138,15 @@ button.btn-secondary:hover:not(:disabled) { background: #f3f4f6; }
   box-shadow: 0 0 6px rgba(249, 115, 22, 0.4) inset;
 }
 
+.flash-anchor { position: relative; height: 0; }
+.flash {
+  position: absolute; right: 14px; top: -28px;
+  background: #16a34a; color: white; padding: 7px 14px; border-radius: 999px;
+  font-size: 13px; font-weight: 700; pointer-events: none;
+  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.4);
+  white-space: nowrap;
+}
+
 .log {
   background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
   margin-top: 14px; overflow: hidden;
