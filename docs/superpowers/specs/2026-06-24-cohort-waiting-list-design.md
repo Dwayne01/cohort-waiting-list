@@ -137,14 +137,14 @@ state: [7]               take(20)
 
 ```
 <App>
-  <SetupBar />        ← initial capacity input + "Create list" (only when no list exists)
+  <SetupBar />        ← initial capacity input + "Create list" (only on first ever load)
   <Stats />           ← total waiting, capacity, cohort count
-  <Controls />        ← add N input + button, take N input + button, reset
+  <Controls />        ← add N input + button, take N input + button, reset (with optional new capacity)
   <ListView>          ← horizontally scrolling row
     <CohortBox />     ← one per cohort, dots inside; the visual focal point
     <ServedFlash />   ← ephemeral "Served: 4" affordance
   </ListView>
-  <OperationLog />    ← last ~20 ops; collapsible
+  <OperationLog />    ← last 20 ops; collapsible
 </App>
 ```
 
@@ -241,7 +241,7 @@ The canonical table. Also reproduced in the README so reviewers can scan it in 3
 | `take(n)` that empties a cohort | Cohort pruned in same operation | Public state never holds empty cohorts |
 | Capacity = 1 | Works normally; each cohort holds one | No special case |
 | Capacity > 50 | UI swaps dot grid for fill bar | Readability |
-| Reset | New list, log cleared, capacity may change | Single way to "start over" |
+| Reset | New empty list, log cleared. Capacity defaults to current; a new capacity may be supplied | Single way to "start over"; SetupBar isn't shown again after first load |
 | localStorage failure | See Section 8 | Graceful degradation |
 | Rapid clicks during animations | New ops apply immediately; animations interrupt cleanly | State is the source of truth |
 | Take/Add buttons | Disabled when their op would be a no-op | Clearer signal than silent click |
