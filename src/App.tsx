@@ -3,6 +3,7 @@ import { SetupBar } from './ui/SetupBar';
 import { Stats } from './ui/Stats';
 import { Controls } from './ui/Controls';
 import { ListView } from './ui/ListView';
+import { OperationLog } from './ui/OperationLog';
 import './styles.css';
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
             onReset={wl.reset}
           />
           <ListView snapshot={wl.snapshot} />
+          <OperationLog log={wl.log} />
         </>
       )}
     </main>

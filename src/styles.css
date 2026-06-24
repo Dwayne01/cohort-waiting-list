@@ -138,6 +138,32 @@ button.btn-secondary:hover:not(:disabled) { background: #f3f4f6; }
   box-shadow: 0 0 6px rgba(249, 115, 22, 0.4) inset;
 }
 
+.log {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+  margin-top: 14px; overflow: hidden;
+}
+.log-toggle {
+  width: 100%; text-align: left; background: transparent; color: #1f2937;
+  padding: 14px 18px; font-weight: 700; font-size: 14px;
+  border-radius: 0;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.log-toggle:hover:not(:disabled) { background: #f9fafb; }
+.log-chev { color: #9ca3af; font-weight: 400; }
+.log-list {
+  list-style: none; padding: 0 18px 14px; margin: 0;
+  max-height: 260px; overflow-y: auto;
+}
+.log-list li {
+  padding: 8px 0; font-size: 13px;
+  border-bottom: 1px dashed #f3f4f6;
+  display: flex; gap: 8px; align-items: baseline;
+}
+.log-list li:last-child { border-bottom: none; }
+.log-verb { color: #4b5563; }
+.log-n { font-weight: 700; font-variant-numeric: tabular-nums; color: #1f2937; }
+.log-time { margin-left: auto; color: #9ca3af; font-size: 12px; font-variant-numeric: tabular-nums; }
+
 @media (max-width: 720px) {
   .controls { grid-template-columns: 1fr; }
   .stats { flex-wrap: wrap; }
