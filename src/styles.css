@@ -77,8 +77,66 @@ button:disabled { background: #cbd5e1; cursor: not-allowed; }
 button.btn-secondary { background: #fff; color: #1f2937; border: 1px solid #d1d5db; }
 button.btn-secondary:hover:not(:disabled) { background: #f3f4f6; }
 
-.raw { margin-top: 18px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.raw code { background: #fff; padding: 8px 12px; border-radius: 8px; border: 1px solid #e5e7eb; }
+.list-empty {
+  padding: 32px; text-align: center; color: #6b7280;
+  background: #fff; border: 1px dashed #d1d5db; border-radius: 12px;
+}
+.list-empty p { margin: 0; }
+
+.list { margin-bottom: 18px; }
+.list-labels {
+  display: flex; justify-content: space-between; font-size: 12px;
+  color: #6b7280; margin-bottom: 6px; padding: 0 6px;
+  text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;
+}
+.list-row {
+  position: relative;
+  display: flex; gap: 12px; overflow-x: auto; padding: 18px;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+  min-height: 160px; align-items: stretch;
+}
+
+.cohort {
+  flex-shrink: 0; padding: 12px 14px; border: 1px solid #e5e7eb;
+  border-radius: 10px; background: #fafbff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.cohort--newest { border-color: #93c5fd; background: #f0f7ff; }
+.cohort--oldest { border-color: #f59e0b; background: #fffaf0; }
+
+.cohort-header {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px;
+}
+.cohort-count { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cohort-cap { font-weight: 500; color: #6b7280; font-size: 13px; }
+.cohort-tag {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 2px 7px; border-radius: 999px; font-weight: 700;
+}
+.tag-served { color: #b45309; background: #fef3c7; }
+.tag-newest { color: #1e40af; background: #dbeafe; }
+
+.dots { display: grid; gap: 4px; min-width: 120px; }
+.dot {
+  width: 14px; height: 14px; border-radius: 50%; background: #e5e7eb;
+  display: inline-block;
+}
+.dot--filled {
+  background: radial-gradient(circle at 30% 30%, #fdba74, #f97316);
+  box-shadow: 0 0 0 1px rgba(234, 88, 12, 0.6) inset, 0 0 6px rgba(249, 115, 22, 0.35);
+}
+
+.bar {
+  width: 240px; height: 24px; background: #e5e7eb;
+  border-radius: 999px; overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #fb923c, #f97316);
+  box-shadow: 0 0 6px rgba(249, 115, 22, 0.4) inset;
+}
 
 @media (max-width: 720px) {
   .controls { grid-template-columns: 1fr; }

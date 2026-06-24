@@ -2,6 +2,7 @@ import { useWaitingList } from './ui/hooks/useWaitingList';
 import { SetupBar } from './ui/SetupBar';
 import { Stats } from './ui/Stats';
 import { Controls } from './ui/Controls';
+import { ListView } from './ui/ListView';
 import './styles.css';
 
 export default function App() {
@@ -36,10 +37,7 @@ export default function App() {
             onTake={wl.take}
             onReset={wl.reset}
           />
-          <section className="raw">
-            <p className="muted">Raw cohorts (newest → oldest):</p>
-            <code>[{wl.snapshot.cohorts.map((c) => c.count).join(', ')}]</code>
-          </section>
+          <ListView snapshot={wl.snapshot} />
         </>
       )}
     </main>
