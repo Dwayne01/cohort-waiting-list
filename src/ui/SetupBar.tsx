@@ -1,26 +1,18 @@
-import { useState } from 'react';
+import { PresetPicker } from './PresetPicker';
+
+const SETUP_PRESETS = [1, 5, 10, 25, 50, 100] as const;
 
 export function SetupBar({ onCreate }: { onCreate: (capacity: number) => void }) {
-  const [value, setValue] = useState('10');
-  const capacity = Number(value);
-  const valid = Number.isInteger(capacity) && capacity >= 1;
-
   return (
     <section className="card">
       <h2>Create a waiting list</h2>
-      <p className="muted">Cohort capacity (default 10):</p>
-      <div className="row">
-        <input
-          type="number"
-          min={1}
-          step={1}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          aria-label="Cohort capacity"
+      <p className="muted">Pick a cohort capacity to begin (default 10).</p>
+      <div className="setup-row">
+        <PresetPicker
+          label="Set capacity & create"
+          presets={SETUP_PRESETS}
+          onPick={onCreate}
         />
-        <button disabled={!valid} onClick={() => onCreate(capacity)}>
-          Create list
-        </button>
       </div>
     </section>
   );
