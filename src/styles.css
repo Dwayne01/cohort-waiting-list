@@ -1,5 +1,5 @@
 :root {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
   color-scheme: light;
 }
 
@@ -13,4 +13,75 @@ body { background: #f6f7fb; color: #1d2330; }
   padding: 24px 20px 64px;
 }
 
-h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: -0.01em; }
+header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px; margin-bottom: 20px;
+}
+h1 { margin: 0 0 4px; font-size: 28px; letter-spacing: -0.01em; font-weight: 700; }
+
+.muted { color: #6b7280; font-size: 13px; margin: 0; }
+
+.badge {
+  display: inline-block; padding: 4px 10px; border-radius: 999px;
+  background: #fff5d6; color: #7a5a00; font-size: 12px; font-weight: 600;
+  white-space: nowrap;
+}
+
+.error {
+  margin: 12px 0; padding: 12px 14px; border-radius: 10px;
+  background: #fde7e7; color: #8a1a1a; cursor: pointer;
+}
+
+.card {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+  padding: 20px; max-width: 480px;
+}
+.card h2 { margin: 0 0 6px; font-size: 18px; }
+.card .row { margin-top: 10px; }
+
+.stats {
+  display: flex; gap: 24px; padding: 14px 18px; background: #fff;
+  border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 14px;
+}
+.stats > div { display: flex; flex-direction: column; gap: 2px; }
+.stat-label { font-size: 12px; color: #6b7280; }
+.stat-value { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.controls {
+  display: grid; grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 12px; margin-bottom: 18px;
+}
+.control {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+  padding: 12px 14px;
+}
+.control-label {
+  display: block; font-size: 12px; color: #6b7280;
+  margin-bottom: 6px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.row { display: flex; gap: 8px; }
+input[type="number"] {
+  flex: 1; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px;
+  font: inherit; font-variant-numeric: tabular-nums;
+}
+input[type="number"]:focus { outline: 2px solid #f97316; outline-offset: 1px; border-color: #f97316; }
+button {
+  padding: 8px 14px; border: none; border-radius: 8px; background: #1f2937;
+  color: #fff; font: inherit; cursor: pointer; font-weight: 600;
+  transition: background 120ms ease, transform 80ms ease;
+}
+button:hover:not(:disabled) { background: #374151; }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { background: #cbd5e1; cursor: not-allowed; }
+button.btn-secondary { background: #fff; color: #1f2937; border: 1px solid #d1d5db; }
+button.btn-secondary:hover:not(:disabled) { background: #f3f4f6; }
+
+.raw { margin-top: 18px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.raw code { background: #fff; padding: 8px 12px; border-radius: 8px; border: 1px solid #e5e7eb; }
+
+@media (max-width: 720px) {
+  .controls { grid-template-columns: 1fr; }
+  .stats { flex-wrap: wrap; }
+  header { flex-direction: column; align-items: flex-start; }
+}
