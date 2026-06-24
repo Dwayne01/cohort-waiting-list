@@ -11,9 +11,12 @@ import './styles.css';
 export default function App() {
   const wl = useWaitingList();
   const [served, setServed] = useState<{ n: number; nonce: number }>({ n: 0, nonce: 0 });
+  const [notice, setNotice] = useState<string | null>(null);
   const clearTimer = useRef<number | null>(null);
+  const noticeTimer = useRef<number | null>(null);
 
   function handleTake(n: number) {
+    const totalBefore = wl.snapshot?.total ?? 0;
     const taken = wl.take(n);
     if (taken > 0) {
       setServed((s) => ({ n: taken, nonce: s.nonce + 1 }));
@@ -22,11 +25,21 @@ export default function App() {
         setServed((s) => ({ n: 0, nonce: s.nonce }));
       }, 900);
     }
+    if (taken < n) {
+      const msg =
+        totalBefore === 0
+          ? `The queue is empty — nothing to take. You requested ${n}.`
+          : `Only ${taken} of ${n} requested could be served — that was all that was left in the queue.`;
+      setNotice(msg);
+      if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+      noticeTimer.current = window.setTimeout(() => setNotice(null), 6000);
+    }
   }
 
   useEffect(() => {
     return () => {
       if (clearTimer.current) window.clearTimeout(clearTimer.current);
+      if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
     };
   }, []);
 
@@ -45,6 +58,12 @@ export default function App() {
       {wl.lastError && (
         <div className="error" role="alert" onClick={wl.clearError}>
           {wl.lastError} <span className="muted">(click to dismiss)</span>
+        </div>
+      )}
+
+      {notice && (
+        <div className="notice" role="status" onClick={() => setNotice(null)}>
+          {notice} <span className="muted">(click to dismiss)</span>
         </div>
       )}
 

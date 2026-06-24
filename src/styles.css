@@ -32,6 +32,19 @@ h1 { margin: 0 0 4px; font-size: 28px; letter-spacing: -0.01em; font-weight: 700
   background: #fde7e7; color: #8a1a1a; cursor: pointer;
 }
 
+.notice {
+  margin: 12px 0; padding: 12px 14px; border-radius: 10px;
+  background: #fef3c7; color: #78350f; cursor: pointer;
+  border: 1px solid #fde68a;
+  display: flex; gap: 6px; align-items: center;
+}
+.notice::before {
+  content: '!'; display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #f59e0b; color: #fff; font-weight: 800; font-size: 12px;
+  flex-shrink: 0;
+}
+
 .card {
   background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
   padding: 20px; max-width: 480px;
