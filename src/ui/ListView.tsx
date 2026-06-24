@@ -21,8 +21,8 @@ export function ListView({ snapshot, cohortIds }: Props) {
   return (
     <section className="list">
       <div className="list-labels">
-        <span>← newest</span>
-        <span>oldest →</span>
+        <span>← back of line</span>
+        <span>door →</span>
       </div>
       <motion.div className="list-row" layout>
         <AnimatePresence initial={false}>

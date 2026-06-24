@@ -41,10 +41,16 @@ export function CohortBox({ cohort, capacity, index, isOldest, isNewest }: Props
 
 function Dots({ count, capacity }: { count: number; capacity: number }) {
   const cols = Math.min(capacity, 10);
+  // Fill from the right: the last `count` positions are filled (front of the queue
+  // closest to the door). When a creator joins, they take the next empty slot to
+  // the left of the existing line; when one is served, the rightmost empties.
+  const firstFilled = capacity - count;
   return (
     <div className="dots" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
       {Array.from({ length: capacity }, (_, i) => {
-        const filled = i < count;
+        const filled = i >= firstFilled;
+        // Stagger so dots closer to the door animate first (right → left).
+        const fromRight = capacity - 1 - i;
         return (
           <motion.span
             key={i}
@@ -57,7 +63,7 @@ function Dots({ count, capacity }: { count: number; capacity: number }) {
             }
             transition={{
               duration: 0.34,
-              delay: filled ? (i % 10) * 0.025 : 0,
+              delay: (fromRight % 10) * 0.025,
               times: filled ? [0, 0.5, 1] : [0, 0.4, 0.7, 1],
             }}
           />
