@@ -1,6 +1,6 @@
 import { PresetPicker } from './PresetPicker';
 
-const SETUP_PRESETS = [1, 5, 10, 25, 50, 100] as const;
+const SETUP_PRESETS = [1, 3, 5, 10] as const;
 
 export function SetupBar({ onCreate }: { onCreate: (capacity: number) => void }) {
   return (

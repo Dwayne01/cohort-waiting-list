@@ -112,7 +112,7 @@ button:disabled { background: #cbd5e1; cursor: not-allowed; }
   transform-origin: top center;
 }
 .picker-presets {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
   margin-bottom: 8px;
 }
 .picker-chip {

@@ -8,9 +8,9 @@ type Props = {
   onReset: (capacity?: number) => void;
 };
 
-const ADD_PRESETS = [1, 3, 5, 10, 25, 100] as const;
-const TAKE_PRESETS = [1, 3, 5, 10, 25, 100] as const;
-const RESET_PRESETS = [1, 5, 10, 25, 50, 100] as const;
+const ADD_PRESETS = [1, 3, 5, 10] as const;
+const TAKE_PRESETS = [1, 3, 5, 10] as const;
+const RESET_PRESETS = [1, 3, 5, 10] as const;
 
 export function Controls({ snapshot, onAdd, onTake, onReset }: Props) {
   const canTake = snapshot.total > 0;
