@@ -91,9 +91,17 @@ button.btn-secondary:hover:not(:disabled) { background: #f3f4f6; }
 }
 .list-row {
   position: relative;
-  display: flex; gap: 12px; overflow-x: auto; padding: 18px;
-  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+  display: flex; gap: 12px; overflow-x: auto; padding: 18px 64px 18px 18px;
+  background:
+    linear-gradient(to right, transparent calc(100% - 80px), rgba(245, 158, 11, 0.10) 100%),
+    #fff;
+  border: 1px solid #e5e7eb; border-radius: 12px;
   min-height: 160px; align-items: stretch;
+  scrollbar-width: thin;
+}
+.list-row::after {
+  content: '→'; position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+  font-size: 22px; color: #b45309; pointer-events: none; font-weight: 700;
 }
 
 .cohort {
