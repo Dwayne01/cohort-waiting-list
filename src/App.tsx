@@ -4,7 +4,6 @@ import { SetupBar } from './ui/SetupBar';
 import { Stats } from './ui/Stats';
 import { Controls } from './ui/Controls';
 import { ListView } from './ui/ListView';
-import { OperationLog } from './ui/OperationLog';
 import { ServedFlash } from './ui/ServedFlash';
 import './styles.css';
 
@@ -92,7 +91,6 @@ export default function App() {
           />
           <ListView snapshot={wl.snapshot} cohortIds={wl.cohortIds} />
           <ServedFlash value={served.n} nonce={served.nonce} />
-          <OperationLog log={wl.log} />
         </>
       )}
     </main>

@@ -1,12 +1,11 @@
-import type { Snapshot, LogEntry } from '../core';
+import type { Snapshot } from '../core';
 
-export const STORAGE_KEY = 'cohort-waitlist:v1';
-export const SCHEMA_VERSION = 1 as const;
+export const STORAGE_KEY = 'cohort-waitlist:v2';
+export const SCHEMA_VERSION = 2 as const;
 
 export type Persisted = {
   version: typeof SCHEMA_VERSION;
   snapshot: Snapshot;
-  log: LogEntry[];
 };
 
 export function isPersisted(value: unknown): value is Persisted {
@@ -33,15 +32,6 @@ export function isPersisted(value: unknown): value is Persisted {
     total += count;
   }
   if (total !== totalField) return false;
-
-  if (!Array.isArray(v['log'])) return false;
-  for (const e of v['log']) {
-    if (typeof e !== 'object' || e === null) return false;
-    const entry = e as Record<string, unknown>;
-    if (!['create', 'add', 'take', 'reset'].includes(entry['op'] as string)) return false;
-    if (typeof entry['n'] !== 'number') return false;
-    if (typeof entry['at'] !== 'number') return false;
-  }
 
   return true;
 }

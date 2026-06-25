@@ -17,7 +17,7 @@ npm run dev      # http://localhost:5173
 - **Take** up to N creators, oldest first.
 - **Get the total** number of creators currently waiting.
 
-State persists to `localStorage`. The Reset button starts over and optionally sets a new capacity.
+State persists to `localStorage`. The Reset button (with a two-step confirm) starts over and optionally sets a new capacity.
 
 ## Design notes
 
@@ -65,7 +65,7 @@ Invariants the public API never breaks:
 | Case | Behavior |
 |---|---|
 | `new WaitingList(0)`, negative, non-integer, NaN, Infinity | `InvalidCapacityError` |
-| `add(0)` / `take(0)` | No-op, no log entry |
+| `add(0)` / `take(0)` | No-op |
 | `add(-1)` / non-integer / NaN / Infinity / > 1,000,000 | Throws |
 | `add(n)` exactly fills the open cohort | No new cohort spawned |
 | `add(n)` on empty list, `n` is a multiple of capacity | `k` full cohorts, no partial |
@@ -132,7 +132,7 @@ src/
   styles.css
   core/
     index.ts          // public barrel
-    types.ts          // Cohort, Snapshot, Op, LogEntry
+    types.ts          // Cohort, Snapshot, Op, TakeResult
     errors.ts         // three error classes
     validate.ts       // validateCapacity, validateCount
     WaitingList.ts    // the class
@@ -145,7 +145,7 @@ src/
     Controls.tsx      // add / take / reset
     ListView.tsx      // AnimatePresence + layout
     CohortBox.tsx     // dot grid + bar fallback
-    OperationLog.tsx  // collapsible, live relative timestamps
+    PresetPicker.tsx  // popover picker with optional confirm step
     ServedFlash.tsx   // "+N served" chip
     hooks/
       useWaitingList.ts  // class-to-React boundary + per-cohort IDs + persistence

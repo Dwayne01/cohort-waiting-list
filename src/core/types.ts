@@ -10,12 +10,6 @@ export type Snapshot = {
 
 export type Op = 'create' | 'add' | 'take' | 'reset';
 
-export type LogEntry = {
-  readonly op: Op;
-  readonly n: number;
-  readonly at: number;
-};
-
 /**
  * Result of a take operation. Discriminated so callers (UI, telemetry, callers
  * in tests) can handle the clamp case without re-deriving it from the input.

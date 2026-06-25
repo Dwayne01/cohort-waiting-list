@@ -1,4 +1,4 @@
-import type { Snapshot, LogEntry } from '../core';
+import type { Snapshot } from '../core';
 import { STORAGE_KEY, SCHEMA_VERSION, isPersisted } from './schema';
 
 export function isStorageAvailable(): boolean {
@@ -12,7 +12,7 @@ export function isStorageAvailable(): boolean {
   }
 }
 
-export function load(): { snapshot: Snapshot; log: LogEntry[] } | null {
+export function load(): { snapshot: Snapshot } | null {
   if (!isStorageAvailable()) return null;
 
   const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -27,16 +27,15 @@ export function load(): { snapshot: Snapshot; log: LogEntry[] } | null {
 
   if (!isPersisted(parsed)) return null;
 
-  return { snapshot: parsed.snapshot, log: parsed.log };
+  return { snapshot: parsed.snapshot };
 }
 
-export function save(snapshot: Snapshot, log: LogEntry[]): boolean {
+export function save(snapshot: Snapshot): boolean {
   if (!isStorageAvailable()) return false;
 
-  const payload: { version: typeof SCHEMA_VERSION; snapshot: Snapshot; log: LogEntry[] } = {
+  const payload: { version: typeof SCHEMA_VERSION; snapshot: Snapshot } = {
     version: SCHEMA_VERSION,
     snapshot,
-    log,
   };
 
   try {

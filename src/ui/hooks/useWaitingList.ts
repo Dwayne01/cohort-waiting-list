@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   WaitingList,
   type Snapshot,
-  type LogEntry,
   type Op,
   type Cohort,
   type TakeResult,
@@ -12,11 +11,9 @@ import {
 } from '../../core';
 import { isStorageAvailable, load, save } from '../../storage/persist';
 
-const LOG_LIMIT = 20;
-
 type State =
   | { kind: 'uninitialized' }
-  | { kind: 'ready'; snapshot: Snapshot; log: LogEntry[]; ids: string[] };
+  | { kind: 'ready'; snapshot: Snapshot; ids: string[] };
 
 let idCounter = 0;
 function makeId(): string {
@@ -64,7 +61,6 @@ export function useWaitingList() {
     return {
       kind: 'ready',
       snapshot: restored.snapshot,
-      log: restored.log,
       ids: restored.snapshot.cohorts.map(() => makeId()),
     };
   });
@@ -78,23 +74,15 @@ export function useWaitingList() {
 
   const [lastError, setLastError] = useState<string | null>(null);
 
-  function appendLog(op: Op, n: number, prevLog: readonly LogEntry[]): LogEntry[] {
-    if (n <= 0) return [...prevLog];
-    const entry: LogEntry = { op, n, at: Date.now() };
-    return [entry, ...prevLog].slice(0, LOG_LIMIT);
-  }
-
-  function publish(op: Op, n: number) {
+  function publish(op: Op) {
     if (ref.current === null) return;
     const snap = ref.current.snapshot();
     setState((prev) => {
-      const prevLog = prev.kind === 'ready' ? prev.log : [];
       const prevCohorts = prev.kind === 'ready' ? prev.snapshot.cohorts : [];
       const prevIds = prev.kind === 'ready' ? prev.ids : [];
-      const log = appendLog(op, n, prevLog);
       const ids = nextIds(prevIds, op, prevCohorts, snap.cohorts);
-      if (persisting) save(snap, log);
-      return { kind: 'ready', snapshot: snap, log, ids };
+      if (persisting) save(snap);
+      return { kind: 'ready', snapshot: snap, ids };
     });
   }
 
@@ -119,7 +107,7 @@ export function useWaitingList() {
   function ensure(capacity: number) {
     tryDo(() => {
       ref.current = new WaitingList(capacity);
-      publish('create', capacity);
+      publish('create');
     });
   }
 
@@ -127,7 +115,7 @@ export function useWaitingList() {
     if (ref.current === null) return;
     tryDo(() => {
       ref.current!.add(n);
-      publish('add', n);
+      publish('add');
     });
   }
 
@@ -135,8 +123,7 @@ export function useWaitingList() {
     if (ref.current === null) return { kind: 'noop' };
     const result = tryDo(() => {
       const r = ref.current!.take(n);
-      const taken = r.kind === 'noop' ? 0 : r.taken;
-      publish('take', taken);
+      publish('take');
       return r;
     });
     return result ?? { kind: 'noop' };
@@ -147,9 +134,8 @@ export function useWaitingList() {
     tryDo(() => {
       ref.current = new WaitingList(cap);
       const snap = ref.current.snapshot();
-      const log = appendLog('reset', cap, []);
-      if (persisting) save(snap, log);
-      setState({ kind: 'ready', snapshot: snap, log, ids: [] });
+      if (persisting) save(snap);
+      setState({ kind: 'ready', snapshot: snap, ids: [] });
     });
   }
 
@@ -157,7 +143,6 @@ export function useWaitingList() {
     state: state.kind,
     snapshot: state.kind === 'ready' ? state.snapshot : null,
     cohortIds: state.kind === 'ready' ? state.ids : [],
-    log: state.kind === 'ready' ? state.log : [],
     persisting,
     lastError,
     clearError: () => setLastError(null),
