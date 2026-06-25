@@ -132,14 +132,13 @@ The lesson: AI's reflex is to type the common pattern. For *animated* lists wher
 
 While adding the "door" indicator on the right of the list, the model produced a 🚪 emoji. I caught my own slip from the project's own house rules (no emojis unless requested) and reverted to a glowing yellow bar in the same commit. Small, fast, but it's the kind of thing that survives if you're not reading every diff.
 
-### What I wrote by hand and why
+### What I wrote by hand
 
-- **The `take()` algorithm.** Drain the rightmost cohort, prune if empty, loop until satisfied or empty. Small, load-bearing, central to correctness. The kind of code I want in my own head so I can defend every line.
-- **The edge-case policy.** Throw on hard input errors (negative, non-integer, NaN, Infinity, `> MAX_N`); no-op on soft zeros; clamp on `take(n > total)`. The spec's "up to N" wording matched none of the AI's defaults — it would have either thrown on every off-nominal case or silently clamped everything. The shape we landed on was a judgment call, not a pattern-match.
-- **The `Snapshot` ↔ mutable class boundary.** The model would have proposed either pure functions throughout or a class with mutable getters. The explicit `snapshot()` returning a fresh, immutable view on every call is the seam that lets React render predictably, lets storage serialize trivially, and would let a test suite assert on pure data. I picked this shape, then asked the model to type it.
-- **The `diffPositions()` algorithm.** Stable per-cohort identity and color across add/take operations required me to deeply understand what each operation does to the array order. I worked through it on paper (`add` prepends K new IDs; `take` drops K from the right; `create`/`reset` replaces all). Once I had it in my head, typing it was trivial.
-- **`TakeResult` discriminated union.** The shape `{ kind: 'served' | 'partial' | 'noop' }` is mine. The model would have left `take(): number` because that's what the spec implies. Adding the union meant the clamp case lives in the type system instead of in `taken < requested` math at every call site.
-- **This writeup.** The earlier passes through it sounded like a generated artifact. This version is mine.
+Honestly: nothing. The model typed every line of source in this repo.
+
+What that meant in practice is that *driving* had to do the work that hand-writing usually does — catching bad reflexes (the `key={i}` flash, the door emoji), choosing the shape (per-cohort over per-batch color, `TakeResult` over `number`, `Snapshot` over leaking the class, no test suite), and rejecting outputs that pattern-matched too easily ("throw on everything" / "clamp on everything" instead of the spec's specific "up to N"). I read every diff before it landed; the commits that survived are the ones I'd defend in a review.
+
+If "hand" means "without the model in the loop," there are no such lines and pretending otherwise would be the wrong answer to this question. The skill on display here is not typing — it's knowing what to ask for and what to push back on.
 
 ## Considerations for performance, structure, and future change
 
