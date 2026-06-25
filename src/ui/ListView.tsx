@@ -1,13 +1,16 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Snapshot } from '../core';
+import type { CohortColor } from './palette';
 import { CohortBox } from './CohortBox';
+import { colorFor } from './palette';
 
 type Props = {
   snapshot: Snapshot;
   cohortIds: readonly string[];
+  cohortColors: readonly CohortColor[];
 };
 
-export function ListView({ snapshot, cohortIds }: Props) {
+export function ListView({ snapshot, cohortIds, cohortColors }: Props) {
   if (snapshot.cohorts.length === 0) {
     return (
       <section className="list-empty">
@@ -24,23 +27,27 @@ export function ListView({ snapshot, cohortIds }: Props) {
         <span>← newest</span>
         <span>oldest (next to be served) →</span>
       </div>
-      <motion.div className="list-row" layout>
-        <AnimatePresence initial={false}>
-          {snapshot.cohorts.map((cohort, i) => {
-            const id = cohortIds[i] ?? `idx-${i}`;
-            return (
-              <CohortBox
-                key={id}
-                cohort={cohort}
-                capacity={snapshot.capacity}
-                index={i}
-                isOldest={i === last}
-                isNewest={i === 0}
-              />
-            );
-          })}
-        </AnimatePresence>
-      </motion.div>
+      <div className="list-scroll">
+        <motion.div className="list-row" layout>
+          <AnimatePresence initial={false}>
+            {snapshot.cohorts.map((cohort, i) => {
+              const id = cohortIds[i] ?? `idx-${i}`;
+              const color = cohortColors[i] ?? colorFor(i);
+              return (
+                <CohortBox
+                  key={id}
+                  cohort={cohort}
+                  capacity={snapshot.capacity}
+                  index={i}
+                  isOldest={i === last}
+                  isNewest={i === 0}
+                  color={color}
+                />
+              );
+            })}
+          </AnimatePresence>
+        </motion.div>
+      </div>
     </section>
   );
 }

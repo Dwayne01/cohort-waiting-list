@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import type { Cohort } from '../core';
+import type { CohortColor } from './palette';
 
 const DOT_THRESHOLD = 50;
 
@@ -9,10 +10,19 @@ type Props = {
   index: number;
   isOldest: boolean;
   isNewest: boolean;
+  color: CohortColor;
 };
 
-export function CohortBox({ cohort, capacity, index, isOldest, isNewest }: Props) {
+export function CohortBox({ cohort, capacity, index, isOldest, isNewest, color }: Props) {
   const useDots = capacity <= DOT_THRESHOLD;
+  // CSS custom-property style cast — Framer Motion's style type rejects
+  // React.CSSProperties under exactOptionalPropertyTypes.
+  const cssVars = {
+    ['--cohort-base' as string]: color.base,
+    ['--cohort-ring' as string]: color.ring,
+    ['--cohort-tint' as string]: color.tint,
+  } as Record<string, string>;
+
   return (
     <motion.div
       layout
@@ -21,13 +31,14 @@ export function CohortBox({ cohort, capacity, index, isOldest, isNewest }: Props
       exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.25 } }}
       transition={{ type: 'spring', stiffness: 380, damping: 28 }}
       className={`cohort ${isOldest ? 'cohort--oldest' : ''} ${isNewest ? 'cohort--newest' : ''}`}
+      style={cssVars}
       data-index={index}
     >
       <div className="cohort-header">
         <span className="cohort-count">
           {cohort.count} <span className="cohort-cap">/ {capacity}</span>
         </span>
-        {isOldest && <span className="cohort-tag tag-served">next to serve</span>}
+        {isOldest && <span className="cohort-tag tag-served">next in line</span>}
         {isNewest && !isOldest && <span className="cohort-tag tag-newest">newest</span>}
       </div>
       {useDots ? (
@@ -41,15 +52,11 @@ export function CohortBox({ cohort, capacity, index, isOldest, isNewest }: Props
 
 function Dots({ count, capacity }: { count: number; capacity: number }) {
   const cols = Math.min(capacity, 10);
-  // Fill from the right: the last `count` positions are filled (front of the queue
-  // closest to the door). When a creator joins, they take the next empty slot to
-  // the left of the existing line; when one is served, the rightmost empties.
   const firstFilled = capacity - count;
   return (
     <div className="dots" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
       {Array.from({ length: capacity }, (_, i) => {
         const filled = i >= firstFilled;
-        // Stagger so dots closer to the door animate first (right → left).
         const fromRight = capacity - 1 - i;
         return (
           <motion.span

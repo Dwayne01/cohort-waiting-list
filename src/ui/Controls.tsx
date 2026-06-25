@@ -27,9 +27,9 @@ export function Controls({ snapshot, onAdd, onTake, onReset }: Props) {
       </div>
 
       <div className="control">
-        <label className="control-label">Take (oldest first)</label>
+        <label className="control-label">Start onboarding (oldest first)</label>
         <PresetPicker
-          label="Take"
+          label="Start onboarding"
           presets={TAKE_PRESETS}
           onPick={onTake}
           disabled={!canTake}

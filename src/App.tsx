@@ -5,6 +5,7 @@ import { Stats } from './ui/Stats';
 import { Controls } from './ui/Controls';
 import { ListView } from './ui/ListView';
 import { ServedFlash } from './ui/ServedFlash';
+import { OnboardingPanel } from './ui/OnboardingPanel';
 import './styles.css';
 
 export default function App() {
@@ -38,8 +39,8 @@ export default function App() {
         if (result.taken > 0) flashServed(result.taken);
         showNotice(
           result.taken === 0
-            ? `The queue is empty — nothing to take. You requested ${result.requested}.`
-            : `Only ${result.taken} of ${result.requested} requested could be served — that was all that was left in the queue.`,
+            ? `The queue is empty — nothing to onboard. You requested ${result.requested}.`
+            : `Only ${result.taken} of ${result.requested} requested could be onboarded — that was all that was left in the queue.`,
         );
         return;
       case 'noop':
@@ -59,7 +60,7 @@ export default function App() {
       <header>
         <div>
           <h1>Cohort Waiting List</h1>
-          <p className="muted">FIFO cohorts — newest on the left, served from the right.</p>
+          <p className="muted">Manage creator onboarding — newest cohorts on the left, served oldest first.</p>
         </div>
         {!wl.persisting && (
           <span className="badge">Not persisting (localStorage unavailable)</span>
@@ -89,8 +90,13 @@ export default function App() {
             onTake={handleTake}
             onReset={wl.reset}
           />
-          <ListView snapshot={wl.snapshot} cohortIds={wl.cohortIds} />
+          <ListView
+            snapshot={wl.snapshot}
+            cohortIds={wl.cohortIds}
+            cohortColors={wl.cohortColors}
+          />
           <ServedFlash value={served.n} nonce={served.nonce} />
+          <OnboardingPanel events={wl.onboardings} onClear={wl.clearOnboardings} />
         </>
       )}
     </main>

@@ -1,5 +1,5 @@
 import type { Snapshot } from '../core';
-import { STORAGE_KEY, SCHEMA_VERSION, isPersisted } from './schema';
+import { STORAGE_KEY, SCHEMA_VERSION, isPersisted, type PersistedOnboardingEvent } from './schema';
 
 export function isStorageAvailable(): boolean {
   try {
@@ -12,7 +12,11 @@ export function isStorageAvailable(): boolean {
   }
 }
 
-export function load(): { snapshot: Snapshot } | null {
+export function load(): {
+  snapshot: Snapshot;
+  colorSeqs: readonly number[];
+  onboardings: readonly PersistedOnboardingEvent[];
+} | null {
   if (!isStorageAvailable()) return null;
 
   const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -27,19 +31,24 @@ export function load(): { snapshot: Snapshot } | null {
 
   if (!isPersisted(parsed)) return null;
 
-  return { snapshot: parsed.snapshot };
+  return {
+    snapshot: parsed.snapshot,
+    colorSeqs: parsed.colorSeqs,
+    onboardings: parsed.onboardings,
+  };
 }
 
-export function save(snapshot: Snapshot): boolean {
+export function save(payload: {
+  snapshot: Snapshot;
+  colorSeqs: readonly number[];
+  onboardings: readonly PersistedOnboardingEvent[];
+}): boolean {
   if (!isStorageAvailable()) return false;
-
-  const payload: { version: typeof SCHEMA_VERSION; snapshot: Snapshot } = {
-    version: SCHEMA_VERSION,
-    snapshot,
-  };
-
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ version: SCHEMA_VERSION, ...payload }),
+    );
     return true;
   } catch {
     return false;

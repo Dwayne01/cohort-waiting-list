@@ -13,7 +13,7 @@ export function ServedFlash({ value, nonce }: { value: number; nonce: number }) 
             exit={{ opacity: 0, y: -42, scale: 0.9 }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
           >
-            +{value} served
+            +{value} onboarded
           </motion.div>
         )}
       </AnimatePresence>
