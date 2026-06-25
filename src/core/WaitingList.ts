@@ -1,4 +1,4 @@
-import type { Cohort, Snapshot } from './types';
+import type { Cohort, Snapshot, TakeResult } from './types';
 import { validateCapacity, validateCount } from './validate';
 
 export class WaitingList {
@@ -46,9 +46,9 @@ export class WaitingList {
     this.#total += n;
   }
 
-  take(n: number): number {
+  take(n: number): TakeResult {
     validateCount(n, WaitingList.MAX_N);
-    if (n === 0) return 0;
+    if (n === 0) return { kind: 'noop' };
 
     let taken = 0;
     let remaining = n;
@@ -69,7 +69,9 @@ export class WaitingList {
     }
 
     this.#total -= taken;
-    return taken;
+    return taken === n
+      ? { kind: 'served', taken }
+      : { kind: 'partial', requested: n, taken };
   }
 
   snapshot(): Snapshot {

@@ -5,6 +5,7 @@ import {
   type LogEntry,
   type Op,
   type Cohort,
+  type TakeResult,
   InvalidCapacityError,
   InvalidCountError,
   NonIntegerCountError,
@@ -130,14 +131,15 @@ export function useWaitingList() {
     });
   }
 
-  function take(n: number): number {
-    if (ref.current === null) return 0;
+  function take(n: number): TakeResult {
+    if (ref.current === null) return { kind: 'noop' };
     const result = tryDo(() => {
-      const taken = ref.current!.take(n);
+      const r = ref.current!.take(n);
+      const taken = r.kind === 'noop' ? 0 : r.taken;
       publish('take', taken);
-      return taken;
+      return r;
     });
-    return result ?? 0;
+    return result ?? { kind: 'noop' };
   }
 
   function reset(capacity?: number) {

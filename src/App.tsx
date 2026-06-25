@@ -15,24 +15,36 @@ export default function App() {
   const clearTimer = useRef<number | null>(null);
   const noticeTimer = useRef<number | null>(null);
 
+  function flashServed(taken: number) {
+    setServed((s) => ({ n: taken, nonce: s.nonce + 1 }));
+    if (clearTimer.current) window.clearTimeout(clearTimer.current);
+    clearTimer.current = window.setTimeout(() => {
+      setServed((s) => ({ n: 0, nonce: s.nonce }));
+    }, 900);
+  }
+
+  function showNotice(msg: string) {
+    setNotice(msg);
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 6000);
+  }
+
   function handleTake(n: number) {
-    const totalBefore = wl.snapshot?.total ?? 0;
-    const taken = wl.take(n);
-    if (taken > 0) {
-      setServed((s) => ({ n: taken, nonce: s.nonce + 1 }));
-      if (clearTimer.current) window.clearTimeout(clearTimer.current);
-      clearTimer.current = window.setTimeout(() => {
-        setServed((s) => ({ n: 0, nonce: s.nonce }));
-      }, 900);
-    }
-    if (taken < n) {
-      const msg =
-        totalBefore === 0
-          ? `The queue is empty — nothing to take. You requested ${n}.`
-          : `Only ${taken} of ${n} requested could be served — that was all that was left in the queue.`;
-      setNotice(msg);
-      if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
-      noticeTimer.current = window.setTimeout(() => setNotice(null), 6000);
+    const result = wl.take(n);
+    switch (result.kind) {
+      case 'served':
+        flashServed(result.taken);
+        return;
+      case 'partial':
+        if (result.taken > 0) flashServed(result.taken);
+        showNotice(
+          result.taken === 0
+            ? `The queue is empty — nothing to take. You requested ${result.requested}.`
+            : `Only ${result.taken} of ${result.requested} requested could be served — that was all that was left in the queue.`,
+        );
+        return;
+      case 'noop':
+        return;
     }
   }
 
