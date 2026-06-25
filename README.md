@@ -1,64 +1,77 @@
 # Cohort Waiting List
 
-A small TypeScript app for managing one FIFO cohort waiting list. Built as a take-home for Elective.
+Elective take-home. Single-page TypeScript app for managing one FIFO cohort waiting list.
 
-## Run
+## Run it
 
 ```bash
-nvm use          # Node 22.11.0 (pinned via .nvmrc)
+nvm use            # Node 22.11.0 (pinned via .nvmrc)
 npm install
-npm run dev      # http://localhost:5173
+npm run dev        # http://localhost:5173
 ```
 
 ## What it does
 
-- **Create** a waiting list with a configurable cohort capacity (default 10).
-- **Add** any number of creators in a single call. Overflow opens new cohorts on the left.
-- **Take** up to N creators, oldest first.
-- **Get the total** number of creators currently waiting.
+The four spec features:
 
-State persists to `localStorage`. The Reset button (with a two-step confirm) starts over and optionally sets a new capacity.
+- Create a list with a configurable cohort capacity (default 10).
+- Add any number of creators in one call. Overflow opens new cohorts on the left.
+- Onboard up to N creators ("take") from the oldest cohort first.
+- Read the total currently waiting.
 
-## Design notes
+Plus a few things that made it feel like a tool instead of a demo: state persists to `localStorage`, Reset asks before it nukes, each cohort gets a stable color so you can see where a batch sits as it moves through the queue, and a "Currently onboarding" panel logs the last few onboarding sessions with their colors preserved.
 
-### Layers
+## How it's organized
 
 ```
 src/
-  core/      ← TS class + types, zero React/DOM/storage dependencies
-  storage/   ← localStorage codec with exhaustive invariant validation
-  ui/        ← React + Framer Motion, consumes immutable Snapshots
+  core/      TypeScript class + types. No React, no DOM, no storage.
+  storage/   localStorage codec with an invariant-checking validator.
+  ui/        React + Framer Motion. Consumes immutable snapshots only.
 ```
 
-The load-bearing decision is the boundary between `core/` and the rest. The core exposes a mutable `WaitingList` class, but the only data that crosses out is an immutable `Snapshot`. The UI never touches the class directly — `useWaitingList` holds it in a `ref` and publishes a fresh snapshot on every operation.
+The seam that does the work is `Snapshot`. The `WaitingList` class is mutable internally (a private `cohorts` array, a `total` field). The only thing that crosses out to React or storage is the value returned by `snapshot()` — a fresh, immutable view rebuilt on every call. Nothing in `ui/` or `storage/` ever sees the class itself.
 
-### Why a mutable class with an immutable wire format?
+The hook (`useWaitingList`) holds the class in a `ref` and publishes a new snapshot after each operation. On the React side everything is data, not methods.
 
-It's the cleanest separation I could find. The class is small and easy to reason about with imperative state; React doesn't need to know it exists. `Snapshot` is what gets typed, serialized, rendered, and diffed. If I wanted to swap the class for pure functions later, the signatures on the React side wouldn't move.
+### Why this shape
 
-### Types pulling weight
+If you went pure-functional, the React glue would be cleaner but the imperative tests in your head ("add fills the leftmost, then prepends") read worse. If you went all-mutable-class-in-React, you'd be fighting render-on-mutation. Splitting at `snapshot()` gives you imperative state where it's easy to think about and immutable values where React expects them.
 
-A few deliberate choices so the type system isn't decoration:
+### Types
 
-- `Cohort = { readonly count: number }` instead of a bare `number`. Costs nothing now, documents the `1..capacity` invariant near the type, leaves room for ids/timestamps later.
-- Three error classes (`InvalidCapacityError`, `InvalidCountError`, `NonIntegerCountError`) so `instanceof` discriminates at the boundary instead of a stringly-typed `error.code`.
-- `strict` + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes` + `verbatimModuleSyntax` in tsconfig. Array index access returns `T | undefined`, forcing the algorithm in `take()` to assert intentionally (one `!` after a length check — the only place in the codebase).
+A few choices that matter:
+
+- `Cohort = { readonly count: number }` rather than a bare `number`. Costs nothing now and leaves a door open for `id`, `createdAt`, etc. without breaking the public API.
+- Three error classes (`InvalidCapacityError`, `InvalidCountError`, `NonIntegerCountError`) so callers `instanceof`-discriminate at the boundary.
+- `take()` returns a discriminated union, not a number:
+
+  ```ts
+  type TakeResult =
+    | { kind: 'served';  taken: number }
+    | { kind: 'partial'; requested: number; taken: number }
+    | { kind: 'noop' };
+  ```
+
+  The clamp case is in the type, so callers don't have to compare `taken < requested` to figure out what happened.
+
+- `strict` + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes` + `verbatimModuleSyntax` in `tsconfig.app.json`. Array index access returns `T | undefined`, which means the algorithm in `take()` has to assert a single time after a length check — the only `!` in the codebase.
 
 ### Algorithms
 
-**`add(n)`**: validate; `n === 0` is a no-op. Otherwise fill the leftmost cohort up to capacity, prepend full cohorts for each capacity-sized chunk, then prepend a partial cohort for the remainder.
+`add(n)` — validate, no-op on 0, otherwise fill the leftmost cohort up to capacity, prepend full cohorts for each capacity-sized chunk, then prepend one partial cohort for the remainder.
 
-**`take(n)`**: validate; `n === 0` returns 0. Otherwise drain the rightmost cohort by `min(remaining, cohort.count)`; if it hits 0, pop it; loop until `n` is satisfied or the list is empty. Returns the count actually taken (clamped to total).
+`take(n)` — validate, no-op on 0, otherwise drain the rightmost cohort by `min(remaining, cohort.count)`. Pop if it hits 0. Loop until satisfied or the list is empty. Return the count actually taken.
 
-Invariants the public API never breaks:
+Invariants the public API maintains:
 
-- `Snapshot.cohorts` never contains a zero. Empty cohorts are pruned in the same operation that empties them.
-- For every cohort: `1 ≤ count ≤ capacity`.
-- Order between cohorts is sacred — only the rightmost is decremented.
+- `Snapshot.cohorts` never holds a zero (empty cohorts are pruned in the same operation).
+- Every `cohort.count` is in `[1, capacity]`.
+- Only the rightmost cohort is ever decremented.
 
-### React key strategy
+### React keys
 
-`useWaitingList` maintains a parallel array of synthetic per-cohort IDs alongside the snapshot. When a cohort persists across operations its ID is stable; when one is prepended or pruned the ID array is updated accordingly. This is what makes `<AnimatePresence>` fire enter/exit only on truly new or removed cohorts, instead of flashing every cohort on every overflow. See the "Working with AI" section for why this got special attention.
+The hook keeps a synthetic `cohortIds: string[]` parallel to `snapshot.cohorts`. When a cohort persists across operations its ID stays put; new IDs are prepended on `add`, dropped from the right on `take`. `<AnimatePresence>` keys off these IDs so it only fires enter/exit on cohorts that actually appeared or disappeared. The same diff primitive (a generic `diffPositions<T>`) is reused for the per-cohort color sequence — both share the "stable identity through operations" requirement.
 
 ## Edge cases
 
@@ -66,92 +79,89 @@ Invariants the public API never breaks:
 |---|---|
 | `new WaitingList(0)`, negative, non-integer, NaN, Infinity | `InvalidCapacityError` |
 | `add(0)` / `take(0)` | No-op |
-| `add(-1)` / non-integer / NaN / Infinity / > 1,000,000 | Throws |
-| `add(n)` exactly fills the open cohort | No new cohort spawned |
-| `add(n)` on empty list, `n` is a multiple of capacity | `k` full cohorts, no partial |
+| `add(-1)`, non-integer, NaN, Infinity, > 1,000,000 | Throws |
+| `add(n)` exactly fills the leftmost open cohort | No new cohort spawned |
+| `add(n)` on empty list with `n` a multiple of capacity | `k` full cohorts, no partial |
 | `take(n)` on empty list | Returns 0 |
-| `take(n > total)` | Returns `total`, list becomes empty |
+| `take(n > total)` | Returns `total`, list goes empty, UI shows an amber notice |
 | `take(n)` that empties a cohort | Pruned in the same operation |
-| Capacity = 1 | Each cohort holds one creator |
-| Capacity > 50 | UI swaps the dot grid for a fill bar |
+| Capacity = 1 | Works — each cohort holds one dot |
+| Capacity > 50 | UI swaps the dot grid for a fill bar inside the same box |
 | localStorage unavailable | Runs in-memory, "Not persisting" badge appears |
-| localStorage corrupt JSON / version mismatch / invariant failure | Bail to fresh state |
+| localStorage JSON corrupt / version mismatch / invariants fail | Bail to fresh state silently |
 | localStorage quota exceeded on write | Caught; UI keeps running, state stays in memory until next successful write |
-| Two browser tabs open | Last write wins; no cross-tab sync (documented limitation) |
-| Rapid clicks during animations | State is the source of truth; animations interrupt cleanly |
-| Take / Add buttons | Disabled when the operation would be a no-op |
+| Two browser tabs open | Last write wins (known limitation, not handled) |
+| Rapid clicks during animations | Data is the source of truth; animations interrupt |
+| Add / Onboard buttons | Disabled when the operation would be a no-op |
+| Reset | Two-step confirm (preset → "Reset list and set capacity to N?") before it clears the list |
 
-## Out of scope (deliberately)
+## Not in scope
 
-- Per-creator identity, names, timestamps. A creator is the number `1`.
-- Multiple named waiting lists. One list per page.
-- Server persistence, auth, sharing.
+- Per-creator identity, names, or timestamps. A creator is the number 1.
+- Multiple named lists.
+- Server persistence, auth, multi-user.
 - Undo / replay.
-- Test suite (see "Tradeoffs").
+- Tests. See trade-offs below.
 
-## Tradeoffs
+## Trade-offs I made
 
-**No test suite.** Time was spent on type design, animation, and the writeup instead. The edge-case table above is the canonical reference — every row is reachable from the running UI, the public API is small enough that reviewers can verify each row by inspection, and `noUncheckedIndexedAccess` + strict TS catches a meaningful class of regressions at the type level. If I had another hour, the first thing I'd add is a `vitest` file with one assertion per row of the table, plus a property test that round-trips `Persisted` through the validator.
+**No test suite.** The spec gives 4–6 hours. I picked type design, animations, and the writeup over test mechanics. The edge-case table is the canonical reference instead — every row is reachable from the UI, the public API is small enough to verify by inspection, and strict TS catches a useful subset of regressions for free. First thing I'd add with another hour is a `vitest` file with one assertion per row of that table plus a property test that round-trips `Persisted` through the validator.
 
-**Framer Motion (~50KB gzipped).** Earns its inclusion through `<AnimatePresence>` and `layout` animations, which are otherwise painful in React. A production app would weigh this more carefully against bundle size.
+**Framer Motion (~50 KB gzipped, most of the bundle).** Earns it through `<AnimatePresence>` and `layout` animations. Building those by hand in React is unpleasant. For a real product I'd weigh code-splitting it or moving to lighter primitives where I could.
 
-**Rehydration via `add()` replay.** When restoring from `localStorage`, I rebuild the class by replaying `add()` from oldest to newest rather than poking private state. O(n) in `total`, but every cohort that exists in memory has gone through validation — there's no "trusted" entry point. For our scale this is irrelevant.
+**Rehydration replays `add()` calls.** When restoring from `localStorage`, I rebuild the class oldest-first via the public `add()` instead of a private `restore()` mutator. O(n) in `total`, irrelevant at our scale, and every cohort that exists in memory has gone through validation.
 
 ## Working with AI
 
-Claude was on the keyboard throughout. I drove the design and the product decisions; I treated the model as a fast typist with strong reflexes that I had to redirect when those reflexes pointed at the wrong thing. Here's the honest accounting.
+Claude was on the keyboard for everything. I drove.
 
-### Where AI helped, and where I overrode it
+The pattern, repeatedly: I'd describe what I wanted; the model would produce a first cut; I'd push back on the parts that pattern-matched too easily to common defaults; we'd iterate. The PR is the result of a lot of small redirects more than any big rewrite.
 
-**Helped:**
+### Where it helped
 
-- **Bootstrap.** I tried `npm create vite` first, got blocked twice on its interactive package-name prompt, and decided to write `package.json`, `vite.config.ts`, both `tsconfig`s, `index.html`, and the entry files directly. The model produced a clean strict-mode setup including `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, and `verbatimModuleSyntax` once I named the flags I wanted.
-- **Edge-case validator.** I described the invariants on the persisted shape (capacity ≥ 1, every cohort count in `[1, capacity]`, `total` equals sum of counts, color-seq array parallel to cohorts). The model produced an exhaustive `isPersisted()` validator on the first try. I read it carefully and shipped it.
-- **Verification harness.** I wanted a scratch script that exercised the spec walkthrough plus the input-validation branches. Generated 36 assertions; all passed. I deleted it before the final commit because the spec doesn't ask for tests, but the script paid for itself by catching the edge cases live.
-- **Framer Motion physics.** I had a verbal target ("a stream filling in, not a flash"). The model produced spring values I tuned by feel until I landed on `stiffness: 380, damping: 28`. A handful of iterations, all driven by what I was seeing in the browser.
-- **Playwright verification on demand.** When I wanted to confirm a change worked, I had the model spin up a headless Chromium, drive the page, and capture screenshots + DOM inspection in a single script. Cheap, repeatable, faster than reloading by hand.
+- The Vite bootstrap. I tried `npm create vite@^6 . --template react-ts` first. It blocked on the interactive package-name prompt twice. We switched to writing `package.json`, `vite.config.ts`, both `tsconfig`s, and the entry files directly. Faster than fighting the wizard. The strict tsconfig (every flag I named, plus `moduleDetection: "force"` which I hadn't planned to add) came together in one pass.
+- The `isPersisted()` validator. I described the invariants verbally (capacity ≥ 1, every cohort count in `[1, capacity]`, total equals sum, color-seq array length matches cohorts). One try, no rework.
+- A scratch verification script that exercised the full spec walkthrough plus the input-validation branches — 36 `expect()` calls, all passing. I deleted it before the final commit (no tests was a scope call), but it caught the edge cases in flight.
+- Framer Motion physics. I said "stream filling in, not a flash." We landed on `stiffness: 380, damping: 28` after a few tries with me watching the browser.
+- Mid-build verification. When I wanted to confirm a change actually worked, I'd have it spin up headless Chromium via Playwright, drive the page, screenshot. Cheap, repeatable, faster than reloading by hand.
 
-**Overrode:**
+### Where I overrode
 
-- **Per-batch vs. per-cohort color.** The model's first proposal for color-coding was per-batch — track each add operation's color through individual creators. I considered it, decided the Ops mental model is *a cohort at a time*, and asked for per-cohort instead. Simpler code, more aligned with how the team actually thinks about onboarding.
-- **The "skip tests" decision.** The model was happy to spin up vitest. I cut it because the spec said 4–6 hours and I'd rather have shipped polish than test mechanics. I called this out as a tradeoff in the writeup and listed it as the first thing I'd add with more time.
-- **Number inputs everywhere.** The first cut had `<input type=number>` for Add/Take/Reset. I asked for a single button per action that reveals a preset picker, so the UI feels like a tool and not a form. Then trimmed presets from `[1, 3, 5, 10, 25, 100]` down to `[1, 3, 5, 10]` on a second pass.
-- **Generic labels.** The model defaulted to "Take" (spec language). I renamed to **Start onboarding** because the case study is about Ops actually onboarding creators, not a generic queue operation. The same instinct drove labeling the right-hand cohort tag "next in line" and adding the "Currently onboarding" panel with a `+N onboarded` chip — the words match the work.
+- **Per-batch color.** First proposal for color-coding was to track every individual creator's add-batch through cohort boundaries. Plausible but the Ops mental model is one-cohort-at-a-time, not "follow this batch." Switched to per-cohort color. Less code, more legible.
+- **Tests.** The model was happy to scaffold vitest. I cut it for time, called it out as a trade-off.
+- **Input fields.** First UI cut was three `<input type=number>` fields with submit buttons. I asked for a single button per action that opens a preset-chip picker. Then trimmed the chip set from `[1, 3, 5, 10, 25, 100]` to `[1, 3, 5, 10]` after seeing it.
+- **Spec-default labels.** "Take" became "Start onboarding" because the brief is about onboarding creators, not running a queue operation. "Oldest" became "next in line" on the rightmost cohort. The "+N served" chip became "+N onboarded." Same instinct on every word.
+- **Dot fill direction.** Defaults put filled dots on the left. I asked for right-to-left so dots sit closer to the door. That swap left the stagger animating in the wrong direction — had to ask again to reverse it.
+- **Cohort packing.** First version was left-justified, so when the oldest cohort got served the rest stayed pinned left and a gap opened on the right. Asked for right-justify (cohorts shuffle toward the door as the queue advances). That introduced an overflow-clipping issue — first fix was `justify-content: flex-end` which clipped left-side content; I asked for a `.list-scroll` wrapper with `margin-left: auto` on the first child instead. Horizontal scroll works now.
 
-### One concrete moment where AI was sloppy
+### The one wrong moment that would have shipped if I'd been on autopilot
 
-Two stand out; this is the one that would have shipped if I'd been on autopilot.
+The first version of `ListView` used `key={i}` for cohorts inside `<AnimatePresence>`. React-default reflex, looks right, isn't. When `add()` overflows and prepends a new cohort, every existing cohort's positional index shifts by one. React reconciles by key, so AnimatePresence sees each existing cohort as a *new* element under a different key and animates the exit of every "removed" key plus the entry of every "new" one. Result: a full-row flash on every overflow.
 
-The first version of `ListView` used `key={i}` for each cohort inside `<AnimatePresence>`. This is the React-default reflex and it *looks* right. It is not right. When `add()` overflows and prepends a new cohort, every existing cohort's positional index shifts by one. React reconciles by key, so each existing cohort is seen as a *new* element under a different key — and AnimatePresence dutifully animates the exit of each "removed" key plus the entry of each "new" one. Visually it's a full-row flash on every overflow, not a clean slide-in.
+I caught it by walking the overflow case in my head before wiring the animations. Fix was a parallel `cohortIds: string[]` array updated via a small `diffPositions()` function — new IDs prepended on `add`, dropped from the right on `take`, full replace on `create`/`reset`. The same primitive is reused for the per-cohort color sequence.
 
-I caught this by walking the overflow case in my head before wiring animations. The fix was to extend `useWaitingList` to maintain a parallel `cohortIds: string[]` array, with a small `diffPositions()` function that updates IDs based on the operation (prepend new IDs on `add`, drop from the right on `take`, replace all on `create`/`reset`). Each cohort gets one stable ID for its lifetime. The same function is reused for the per-cohort color sequence — the diff logic is the load-bearing primitive for both identity and color.
+Pattern-matchy AI defaults are invisible when you only read the code statically. Walking the operation sequence is what surfaces them.
 
-The lesson: AI's reflex is to type the common pattern. For *animated* lists where elements appear at non-end positions, the common pattern is wrong and the bug is invisible to a static read.
+### Smaller miss worth keeping
 
-### The second wrong moment — small, but worth keeping
-
-While adding the "door" indicator on the right of the list, the model produced a 🚪 emoji. I caught my own slip from the project's own house rules (no emojis unless requested) and reverted to a glowing yellow bar in the same commit. Small, fast, but it's the kind of thing that survives if you're not reading every diff.
+Adding the "door" indicator at the right of the queue, the model produced a 🚪 emoji. House rule is no emojis unless requested. I caught it the same diff and reverted to a glowing yellow bar. Trivial in itself, but the kind of thing that survives if you stop reading every change.
 
 ### What I wrote by hand
 
-Honestly: nothing. The model typed every line of source in this repo.
+Nothing. The model typed every line of source. What I did was direct — describe what I wanted, push back on reflexive defaults, choose the shape (`Snapshot` over leaking the class, `TakeResult` over `number`, per-cohort over per-batch color, two-step confirm on Reset, no tests). I read every diff before it landed. The commits that survived are the ones I'd defend in review.
 
-What that meant in practice is that *driving* had to do the work that hand-writing usually does — catching bad reflexes (the `key={i}` flash, the door emoji), choosing the shape (per-cohort over per-batch color, `TakeResult` over `number`, `Snapshot` over leaking the class, no test suite), and rejecting outputs that pattern-matched too easily ("throw on everything" / "clamp on everything" instead of the spec's specific "up to N"). I read every diff before it landed; the commits that survived are the ones I'd defend in a review.
+"Hand-written" with no model in the loop would be zero lines and pretending otherwise isn't the answer to this question. The skill on display is what to ask for and what to push back on.
 
-If "hand" means "without the model in the loop," there are no such lines and pretending otherwise would be the wrong answer to this question. The skill on display here is not typing — it's knowing what to ask for and what to push back on.
+## Things I considered (performance, structure, future)
 
-## Considerations for performance, structure, and future change
-
-Things I thought about and either decided against, deferred, or shipped a specific tradeoff on:
-
-- **`add()` replay on rehydration.** Restoring from `localStorage` rebuilds the class by calling `add()` from oldest to newest. O(n) in `total`, which is irrelevant at our scale and guarantees every cohort in memory has gone through validation. For a hot path with millions of creators I'd add a private `restore()` mutator, but that introduces a second trusted entry point I'd want to keep narrow.
-- **Persistence write frequency.** Every operation triggers a `localStorage.setItem`. Fine for an interactive UI but wasteful if operations come in bursts. I'd add a debounced writer with a 100ms tail flush; never observable to a human, kills the work on rapid-fire input.
-- **Bundle size.** ~91KB gzipped, ~75% of which is Framer Motion. The library earns its inclusion through `<AnimatePresence>` and `layout` animations, which are otherwise painful in React. For a production app I'd weigh code-splitting the animation paths or moving to a lighter alternative (`motion/react` lazy, or just CSS transitions for the simpler cases).
-- **Schema versioning.** Storage went through v1 → v2 → v3 during this build. Each bump drops older payloads silently rather than migrating. A more sophisticated path would have a per-version parser chain (`v1Parse → v2Migrate → v3Migrate`) so a returning user never loses state on a schema change. Overkill for a take-home; reasonable for a real product.
-- **Cohort virtualization.** The list is unvirtualized; it renders every cohort to the DOM. With our default capacity and a "large" waiting list of, say, a few hundred cohorts, that's fine. North of a few thousand and the `<AnimatePresence>` reconciliation costs would start showing — I'd switch to `react-window` and either freeze animations during scroll or only animate the cohorts in view.
-- **Future hooks the type system leaves open.** `Cohort = { readonly count: number }` (instead of a bare `number`) lets us add `id`, `createdAt`, `tags`, or any other per-cohort metadata without breaking the public API. Same for `TakeResult` — the discriminated union has room to grow new kinds (e.g. `'rate-limited'`, `'queue-frozen'`) without changing callers that already handle the existing kinds exhaustively.
-- **Cross-tab sync.** Two tabs open today is last-write-wins. The clean fix is a `storage` event listener that re-loads the snapshot when another tab writes; documented as a known limitation in the edge-case table instead of building it.
-- **Accessibility.** ARIA labels are present on inputs and toggles; the picker popover announces expanded/collapsed via `aria-expanded`. Beyond that, I'd add a full keyboard map (`A`/`T`/`R` shortcuts to open pickers, arrow keys to navigate chips) before calling it production-ready.
+- **Rehydration cost.** `add()` replay is O(n) in `total`. Fine for our scale. A `restore()` private mutator would be the obvious change at million-creator scale, but I'd want to keep its scope very narrow — every other path into the class is validated.
+- **Storage write frequency.** Every operation writes to `localStorage`. Imperceptible to a human; wasteful on burst input. A debounced writer with a ~100ms tail flush kills the work without changing observable behavior.
+- **Bundle size.** ~91 KB gzipped, dominated by Framer Motion. For a take-home, fine. For a real product, code-split the animations or drop to CSS transitions for the simple cases.
+- **Schema versioning.** Storage went through v1 → v2 → v3 during this build (removed log; added colorSeqs + onboardings). Each bump drops older payloads silently. A real product would have per-version parsers chained for migration.
+- **Cohort virtualization.** Unvirtualized today. Fine through a few hundred cohorts. North of that I'd switch to `react-window` and either freeze animations on scroll or only animate cohorts in view.
+- **Type-system slack.** `Cohort = { readonly count: number }` leaves room for `id`/`createdAt`/`tags`. `TakeResult`'s discriminated union has room for new kinds (`'rate-limited'`, `'queue-frozen'`) without breaking exhaustive callers.
+- **Cross-tab sync.** Today: last write wins. Fix is a `storage` event listener; documented as a known limitation in the edge-case table rather than built.
+- **Accessibility.** ARIA labels on inputs, picker has `aria-expanded`, action buttons have visible labels. Still missing a full keyboard map (A/T/R shortcuts, arrow navigation on chips) which is what I'd add before calling it production-ready.
 
 ## Project layout
 
@@ -161,29 +171,30 @@ src/
   App.tsx
   styles.css
   core/
-    index.ts          // public barrel
-    types.ts          // Cohort, Snapshot, Op, TakeResult
-    errors.ts         // three error classes
-    validate.ts       // validateCapacity, validateCount
-    WaitingList.ts    // the class
+    index.ts          public barrel
+    types.ts          Cohort, Snapshot, Op, TakeResult
+    errors.ts         three error classes
+    validate.ts       validateCapacity, validateCount
+    WaitingList.ts    the class
   storage/
-    schema.ts         // STORAGE_KEY, Persisted, isPersisted validator
-    persist.ts        // load, save, isStorageAvailable, clearStorage
+    schema.ts         STORAGE_KEY, Persisted, isPersisted
+    persist.ts        load, save, isStorageAvailable, clearStorage
   ui/
+    App.tsx           wiring + notice/served-flash orchestration
     SetupBar.tsx
-    Stats.tsx           // total counter tweens via rAF
-    Controls.tsx        // add / start onboarding / reset
-    ListView.tsx        // AnimatePresence + layout, horizontally scrollable
-    CohortBox.tsx       // dot grid + bar fallback, color from CSS vars
-    PresetPicker.tsx    // popover picker with optional confirm step
-    OnboardingPanel.tsx // "Currently onboarding" card list
-    ServedFlash.tsx     // "+N onboarded" chip
-    palette.ts          // 10-color cohort palette
+    Stats.tsx         total counter tweens via rAF
+    Controls.tsx      Add / Start onboarding / Reset
+    ListView.tsx      AnimatePresence + layout, horizontally scrollable
+    CohortBox.tsx     dot grid + bar fallback, color from CSS vars
+    PresetPicker.tsx  popover picker with optional confirm step
+    OnboardingPanel.tsx  "Currently onboarding" card list
+    ServedFlash.tsx   "+N onboarded" chip
+    palette.ts        10-color cohort palette
     hooks/
-      useWaitingList.ts // class-to-React boundary, per-cohort IDs + colors, persistence
+      useWaitingList.ts  class-to-React boundary, per-cohort IDs + colors, persistence
 docs/
   superpowers/
-    specs/ 2026-06-24-cohort-waiting-list-design.md
-    plans/ 2026-06-24-cohort-waiting-list.md
-AI_NOTES.md             // scratch material that fed the AI section above
+    specs/   the approved design spec
+    plans/   the implementation plan
+AI_NOTES.md            raw working notes that fed the "Working with AI" section
 ```
