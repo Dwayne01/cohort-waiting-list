@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
+export type PickerConfirm = {
+  title: (n: number) => string;
+  detail?: string;
+  confirmLabel?: string;
+};
+
 type Props = {
   label: string;
   presets: readonly number[];
@@ -9,6 +15,7 @@ type Props = {
   variant?: 'primary' | 'secondary';
   customMin?: number;
   customMax?: number;
+  confirm?: PickerConfirm;
 };
 
 export function PresetPicker({
@@ -19,20 +26,22 @@ export function PresetPicker({
   variant = 'primary',
   customMin = 1,
   customMax = 1_000_000,
+  confirm,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [custom, setCustom] = useState('');
+  const [pending, setPending] = useState<number | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
     function onDocDown(e: MouseEvent) {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false);
+        close();
       }
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') close();
     }
     document.addEventListener('mousedown', onDocDown);
     document.addEventListener('keydown', onKey);
@@ -40,22 +49,36 @@ export function PresetPicker({
       document.removeEventListener('mousedown', onDocDown);
       document.removeEventListener('keydown', onKey);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  function pick(n: number) {
-    onPick(n);
+  function close() {
     setOpen(false);
+    setPending(null);
     setCustom('');
   }
 
-  function submitCustom() {
-    const n = Number(custom);
-    if (!Number.isInteger(n) || n < customMin || n > customMax) return;
-    pick(n);
+  function chose(n: number) {
+    if (confirm) {
+      setPending(n);
+    } else {
+      onPick(n);
+      close();
+    }
+  }
+
+  function confirmPending() {
+    if (pending === null) return;
+    onPick(pending);
+    close();
   }
 
   const customN = Number(custom);
-  const customValid = custom !== '' && Number.isInteger(customN) && customN >= customMin && customN <= customMax;
+  const customValid =
+    custom !== '' &&
+    Number.isInteger(customN) &&
+    customN >= customMin &&
+    customN <= customMax;
 
   return (
     <div className="picker" ref={wrapRef}>
@@ -65,7 +88,7 @@ export function PresetPicker({
         disabled={disabled}
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? close() : setOpen(true))}
       >
         <span>{label}</span>
         <span className="picker-chev" aria-hidden="true">{open ? '▴' : '▾'}</span>
@@ -81,45 +104,73 @@ export function PresetPicker({
             exit={{ opacity: 0, y: -6, scale: 0.96 }}
             transition={{ duration: 0.14, ease: 'easeOut' }}
           >
-            <div className="picker-presets">
-              {presets.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  className="picker-chip"
-                  onClick={() => pick(n)}
-                  role="menuitem"
+            {pending === null ? (
+              <>
+                <div className="picker-presets">
+                  {presets.map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      className="picker-chip"
+                      onClick={() => chose(n)}
+                      role="menuitem"
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <form
+                  className="picker-custom"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (customValid) chose(customN);
+                  }}
                 >
-                  {n}
-                </button>
-              ))}
-            </div>
-            <form
-              className="picker-custom"
-              onSubmit={(e) => {
-                e.preventDefault();
-                submitCustom();
-              }}
-            >
-              <input
-                type="number"
-                min={customMin}
-                step={1}
-                value={custom}
-                onChange={(e) => setCustom(e.target.value)}
-                placeholder="custom"
-                aria-label={`Custom ${label} value`}
-                autoFocus
-              />
-              <button
-                type="submit"
-                className="picker-go"
-                disabled={!customValid}
-                aria-label="Apply custom value"
-              >
-                ↵
-              </button>
-            </form>
+                  <input
+                    type="number"
+                    min={customMin}
+                    step={1}
+                    value={custom}
+                    onChange={(e) => setCustom(e.target.value)}
+                    placeholder="custom"
+                    aria-label={`Custom ${label} value`}
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    className="picker-go"
+                    disabled={!customValid}
+                    aria-label="Apply custom value"
+                  >
+                    ↵
+                  </button>
+                </form>
+              </>
+            ) : (
+              <div className="picker-confirm">
+                <p className="picker-confirm-title">{confirm!.title(pending)}</p>
+                {confirm!.detail && (
+                  <p className="picker-confirm-detail">{confirm!.detail}</p>
+                )}
+                <div className="picker-confirm-actions">
+                  <button
+                    type="button"
+                    className="picker-cancel"
+                    onClick={() => setPending(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="picker-go picker-confirm-go"
+                    onClick={confirmPending}
+                    autoFocus
+                  >
+                    {confirm!.confirmLabel ?? 'Confirm'}
+                  </button>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

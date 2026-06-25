@@ -43,6 +43,11 @@ export function Controls({ snapshot, onAdd, onTake, onReset }: Props) {
           presets={RESET_PRESETS}
           onPick={onReset}
           variant="secondary"
+          confirm={{
+            title: (n) => `Reset list and set capacity to ${n}?`,
+            detail: 'This clears all cohorts and the operation log.',
+            confirmLabel: 'Yes, reset',
+          }}
         />
       </div>
     </section>
